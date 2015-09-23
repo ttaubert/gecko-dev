@@ -87,6 +87,48 @@ PrivateKeyFromPrivateKeyTemplate(SECItem* aObjID,
   return PK11_FindKeyByKeyID(slot, aObjID, nullptr);
 }
 
+SECKEYPrivateKey*
+MakePrivateECDHKey(const SECItem* aParams,
+                   const SECItem* aPoint,
+                   const SECItem* aValue)
+{
+  CK_KEY_TYPE ecValue = CKK_EC;
+  CK_BBOOL falseValue = CK_FALSE;
+  CK_OBJECT_CLASS privateKeyValue = CKO_PRIVATE_KEY;
+
+  ScopedPK11SlotInfo slot(PK11_GetInternalSlot());
+  if (!slot) {
+    return nullptr;
+  }
+
+  ScopedSECItem objID(::SECITEM_AllocItem(nullptr, nullptr, 20));
+  if (!objID) {
+    return nullptr;
+  }
+
+  // Generate a random 160-bit object ID.
+  SECStatus rv = PK11_GenerateRandomOnSlot(slot, objID->data, objID->len);
+  if (rv != SECSuccess) {
+    return nullptr;
+  }
+
+  // Populate template from parameters
+  CK_ATTRIBUTE keyTemplate[9] = {
+    { CKA_CLASS,            &privateKeyValue,     sizeof(privateKeyValue) },
+    { CKA_KEY_TYPE,         &ecValue,             sizeof(ecValue) },
+    { CKA_TOKEN,            &falseValue,          sizeof(falseValue) },
+    { CKA_SENSITIVE,        &falseValue,          sizeof(falseValue) },
+    { CKA_PRIVATE,          &falseValue,          sizeof(falseValue) },
+    { CKA_ID,               objID->data,          objID->len },
+    { CKA_EC_PARAMS,        aParams->data,        aParams->len },
+    { CKA_EC_POINT,         aPoint->data,         aPoint->len },
+    { CKA_VALUE,            aValue->data,         aValue->len },
+  };
+
+  return PrivateKeyFromPrivateKeyTemplate(objID, keyTemplate,
+                                          PR_ARRAY_SIZE(keyTemplate));
+}
+
 CryptoKey::CryptoKey(nsIGlobalObject* aGlobal)
   : mGlobal(aGlobal)
   , mAttributes(0)
@@ -263,52 +305,31 @@ CryptoKey::AddPublicKeyData(SECKEYPublicKey* aPublicKey)
 
   nsNSSShutDownPreventionLock locker;
 
-  ScopedPK11SlotInfo slot(PK11_GetInternalSlot());
-  if (!slot) {
-    return NS_ERROR_DOM_OPERATION_ERR;
-  }
-
-  // Generate a random 160-bit object ID.
-  ScopedSECItem objID(::SECITEM_AllocItem(nullptr, nullptr, 20));
-  SECStatus rv = PK11_GenerateRandomOnSlot(slot, objID->data, objID->len);
-  if (rv != SECSuccess) {
+  ScopedSECItem params(::SECITEM_AllocItem(nullptr, nullptr, 0));
+  if (!params) {
     return NS_ERROR_DOM_OPERATION_ERR;
   }
 
   // Read EC params.
-  ScopedSECItem params(::SECITEM_AllocItem(nullptr, nullptr, 0));
-  rv = PK11_ReadRawAttribute(PK11_TypePrivKey, mPrivateKey, CKA_EC_PARAMS,
-                             params);
+  SECStatus rv = PK11_ReadRawAttribute(PK11_TypePrivKey, mPrivateKey,
+                                       CKA_EC_PARAMS, params);
   if (rv != SECSuccess) {
     return NS_ERROR_DOM_OPERATION_ERR;
   }
 
-  // Read private value.
   ScopedSECItem value(::SECITEM_AllocItem(nullptr, nullptr, 0));
+  if (!value) {
+    return NS_ERROR_DOM_OPERATION_ERR;
+  }
+
+  // Read private value.
   rv = PK11_ReadRawAttribute(PK11_TypePrivKey, mPrivateKey, CKA_VALUE, value);
   if (rv != SECSuccess) {
     return NS_ERROR_DOM_OPERATION_ERR;
   }
 
   SECItem* point = &aPublicKey->u.ec.publicValue;
-  CK_OBJECT_CLASS privateKeyValue = CKO_PRIVATE_KEY;
-  CK_BBOOL falseValue = CK_FALSE;
-  CK_KEY_TYPE ecValue = CKK_EC;
-
-  CK_ATTRIBUTE keyTemplate[9] = {
-    { CKA_CLASS,            &privateKeyValue,     sizeof(privateKeyValue) },
-    { CKA_KEY_TYPE,         &ecValue,             sizeof(ecValue) },
-    { CKA_TOKEN,            &falseValue,          sizeof(falseValue) },
-    { CKA_SENSITIVE,        &falseValue,          sizeof(falseValue) },
-    { CKA_PRIVATE,          &falseValue,          sizeof(falseValue) },
-    { CKA_ID,               objID->data,          objID->len },
-    { CKA_EC_PARAMS,        params->data,         params->len },
-    { CKA_EC_POINT,         point->data,          point->len },
-    { CKA_VALUE,            value->data,          value->len },
-  };
-
-  mPrivateKey = PrivateKeyFromPrivateKeyTemplate(objID, keyTemplate,
-                                                 PR_ARRAY_SIZE(keyTemplate));
+  mPrivateKey = MakePrivateECDHKey(params, point, value);
   NS_ENSURE_TRUE(mPrivateKey, NS_ERROR_DOM_OPERATION_ERR);
 
   return NS_OK;
@@ -728,29 +749,9 @@ CryptoKey::PrivateKeyFromJwk(const JsonWebKey& aJwk,
       return nullptr;
     }
 
-    // Compute the ID for this key
-    // This is generated with a SHA-1 hash, so unlikely to collide
-    ScopedSECItem objID(PK11_MakeIDFromPubKey(ecPoint));
-    if (!objID.get()) {
-      return nullptr;
-    }
-
-    // Populate template from parameters
-    CK_KEY_TYPE ecValue = CKK_EC;
-    CK_ATTRIBUTE keyTemplate[9] = {
-      { CKA_CLASS,            &privateKeyValue,     sizeof(privateKeyValue) },
-      { CKA_KEY_TYPE,         &ecValue,             sizeof(ecValue) },
-      { CKA_TOKEN,            &falseValue,          sizeof(falseValue) },
-      { CKA_SENSITIVE,        &falseValue,          sizeof(falseValue) },
-      { CKA_PRIVATE,          &falseValue,          sizeof(falseValue) },
-      { CKA_ID,               objID->data,          objID->len },
-      { CKA_EC_PARAMS,        params->data,         params->len },
-      { CKA_EC_POINT,         ecPoint->data,        ecPoint->len },
-      { CKA_VALUE,            (void*) d.Elements(), d.Length() },
-    };
-
-    return PrivateKeyFromPrivateKeyTemplate(objID, keyTemplate,
-                                            PR_ARRAY_SIZE(keyTemplate));
+    SECItem value = { siBuffer, d.Elements(),
+                      static_cast<unsigned int>(d.Length()) };
+    return MakePrivateECDHKey(params, ecPoint, &value);
   }
 
   if (aJwk.mKty.EqualsLiteral(JWK_TYPE_RSA)) {
