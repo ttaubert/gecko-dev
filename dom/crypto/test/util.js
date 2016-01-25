@@ -42,6 +42,18 @@ var util = {
     }
     return abv;
   },
+
+  clone: function (obj) {
+    return new Promise(resolve => {
+      let {port1, port2} = new MessageChannel();
+
+      // Wait for the cloned object to arrive.
+      port1.onmessage = msg => resolve(msg.data);
+
+      // Clone the object.
+      port2.postMessage(obj);
+    });
+  }
 };
 
 function exists(x) {
