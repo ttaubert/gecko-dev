@@ -1853,9 +1853,15 @@ private:
     ScopedSECKEYPrivateKey privKey;
 
     nsNSSShutDownPreventionLock locker;
-    if (mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_JWK) && mJwk.mD.WasPassed()) {
+    if (mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_PKCS8) ||
+        (mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_JWK) &&
+         mJwk.mD.WasPassed())) {
       // Private key import
-      privKey = CryptoKey::PrivateKeyFromJwk(mJwk, locker);
+      if (mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_PKCS8)) {
+        privKey = CryptoKey::PrivateKeyFromPkcs8(mKeyData, locker);
+      } else {
+        privKey = CryptoKey::PrivateKeyFromJwk(mJwk, locker);
+      }
       if (!privKey) {
         return NS_ERROR_DOM_DATA_ERR;
       }
@@ -1884,22 +1890,6 @@ private:
         return NS_ERROR_DOM_DATA_ERR;
       }
 
-      if (mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_SPKI)) {
-        if (!CheckEncodedECParameters(&pubKey->u.ec.DEREncodedParams)) {
-          return NS_ERROR_DOM_OPERATION_ERR;
-        }
-
-        // Construct the OID tag.
-        SECItem oid = { siBuffer, nullptr, 0 };
-        oid.len = pubKey->u.ec.DEREncodedParams.data[1];
-        oid.data = pubKey->u.ec.DEREncodedParams.data + 2;
-
-        // Find a matching and supported named curve.
-        if (!MapOIDTagToNamedCurve(SECOID_FindOIDTag(&oid), mNamedCurve)) {
-          return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
-        }
-      }
-
       if (NS_FAILED(mKey->SetPublicKey(pubKey.get()))) {
         return NS_ERROR_DOM_OPERATION_ERR;
       }
@@ -1912,6 +1902,37 @@ private:
     // Extract 'crv' parameter from JWKs.
     if (mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_JWK)) {
       if (!NormalizeToken(mJwk.mCrv.Value(), mNamedCurve)) {
+        return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
+      }
+    }
+
+    // Set namedCurve.
+    if (mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_SPKI) ||
+        mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_PKCS8)) {
+
+      ScopedSECItem params(::SECITEM_AllocItem(nullptr, nullptr, 0));
+
+      if (mFormat.EqualsLiteral(WEBCRYPTO_KEY_FORMAT_PKCS8)) {
+        // Read EC params.
+        SECStatus rv = PK11_ReadRawAttribute(PK11_TypePrivKey, privKey,
+                                             CKA_EC_PARAMS, params);
+        if (rv != SECSuccess) {
+          return NS_ERROR_DOM_DATA_ERR;
+        }
+      } else {
+        SECITEM_CopyItem(nullptr, params, &pubKey->u.ec.DEREncodedParams);
+      }
+
+      // Sanity check the EC params.
+      if (!CheckEncodedECParameters(params)) {
+        return NS_ERROR_DOM_OPERATION_ERR;
+      }
+
+      // Construct the OID tag.
+      SECItem oid = { siBuffer, params->data + 2, params->data[1] };
+
+      // Find a matching and supported named curve.
+      if (!MapOIDTagToNamedCurve(SECOID_FindOIDTag(&oid), mNamedCurve)) {
         return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
       }
     }
@@ -2119,6 +2140,7 @@ private:
       }
 
       switch (mPrivateKey->keyType) {
+        case ecKey:
         case rsaKey: {
           nsresult rv = CryptoKey::PrivateKeyToPkcs8(mPrivateKey.get(), mResult, locker);
           if (NS_FAILED(rv)) {

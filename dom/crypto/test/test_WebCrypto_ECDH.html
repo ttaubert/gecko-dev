@@ -546,6 +546,66 @@ TestArray.addTest(
       .then(memcmp_complete(that, tv.ecdh_p256.secret), error(that));
   }
 );
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "SPKI/PKCS8 import ECDH keys (P-256) and derive a known secret",
+  function () {
+    var that = this;
+    var secret = tv.ecdh_p256.secret;
+    var memcmp = x => util.memcmp(x, secret);
+
+    function doImportDerive(spki, pkcs8) {
+      return Promise.all([
+        crypto.subtle.importKey("spki", tv.ecdh_p256[spki], "ECDH", false, ["deriveBits"]),
+        crypto.subtle.importKey("pkcs8", tv.ecdh_p256[pkcs8], "ECDH", false, ["deriveBits"])
+      ]).then(function ([pub, priv]) {
+        var alg = { name: "ECDH", public: pub };
+        return crypto.subtle.deriveBits(alg, priv, secret.byteLength * 8);
+      });
+    }
+
+    var spkis = ["spki", "spki_id_ecpk"];
+    var pkcs8s = ["pkcs8", "pkcs8_id_ecpk", "pkcs8_no_pubkey"];
+
+    Promise.all([for (s of spkis) for (p of pkcs8s) doImportDerive(s, p)])
+      .then(complete(that, x => x.every(memcmp)), error(that));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "PKCS8 import without EC params should fail",
+  function () {
+    var that = this;
+    var alg = { name: "ECDH" };
+    var pkcs8 = tv.ecdh_p256.pkcs8_no_params;
+
+    crypto.subtle.importKey("pkcs8", pkcs8, alg, false, ["deriveBits"])
+      .then(error(that), complete(that));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "PKCS8 import/export of private ECDH keys (P-256)",
+  function () {
+    var that = this;
+    var alg = { name: "ECDH" };
+    var keys = ["pkcs8", "pkcs8_id_ecpk", /*"pkcs8_no_pubkey"*/];
+    var memcmp = x => util.memcmp(x, tv.ecdh_p256.pkcs8);
+
+    function doImportExport(key) {
+      var pkcs8 = tv.ecdh_p256[key];
+      return crypto.subtle.importKey("pkcs8", pkcs8, alg, true, ["deriveBits"])
+        .then(x => crypto.subtle.exportKey("pkcs8", x))
+    }
+
+    Promise.all(keys.map(doImportExport))
+      .then(complete(that, x => x.every(memcmp)))
+      .catch(error(that));
+  }
+);
 /*]]>*/</script>
 </head>
 

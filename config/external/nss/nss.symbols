@@ -243,6 +243,7 @@ NSS_Get_CERT_SignedCrlTemplate
 NSS_Get_CERT_SignedDataTemplate
 NSS_Get_CERT_SubjectPublicKeyInfoTemplate
 NSS_Get_CERT_TimeChoiceTemplate
+NSS_Get_SEC_AnyTemplate
 NSS_Get_SEC_AnyTemplate_Util
 NSS_Get_SEC_BitStringTemplate
 NSS_Get_SEC_BitStringTemplate_Util
@@ -253,6 +254,7 @@ NSS_Get_SEC_IA5StringTemplate
 NSS_Get_SEC_IA5StringTemplate_Util
 NSS_Get_SEC_IntegerTemplate
 NSS_Get_SEC_IntegerTemplate_Util
+NSS_Get_SECKEY_PrivateKeyInfoTemplate
 NSS_Get_SECKEY_RSAPSSParamsTemplate
 NSS_Get_SEC_NullTemplate_Util
 NSS_Get_SEC_ObjectIDTemplate_Util
@@ -328,6 +330,7 @@ PK11_DoesMechanism
 PK11_Encrypt
 PK11_ExportDERPrivateKeyInfo
 PK11_ExportEncryptedPrivKeyInfo
+PK11_ExportPrivKeyInfo
 PK11_ExtractKeyValue
 PK11_FindCertFromNickname
 PK11_FindCertsFromEmailAddress
@@ -473,6 +476,7 @@ PORT_UCS2_UTF8Conversion_Util
 PORT_ZAlloc
 PORT_ZAlloc_Util
 PORT_ZFree_Util
+SEC_AnyTemplate @DATA@
 SEC_AnyTemplate_Util @DATA@
 SEC_ASN1Decode
 SEC_ASN1DecodeInteger
@@ -535,6 +539,7 @@ SECKEY_ExtractPublicKey
 SECKEY_GetPublicKeyType
 SECKEY_ImportDERPublicKey
 SECKEY_PublicKeyStrength
+SECKEY_PrivateKeyInfoTemplate @DATA@
 SECKEY_RSAPSSParamsTemplate @DATA@
 SECKEY_SignatureLen
 SECMIME_DecryptionAllowed

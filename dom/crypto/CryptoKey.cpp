@@ -6,6 +6,7 @@
 
 #include "pk11pub.h"
 #include "cryptohi.h"
+#include "secder.h"
 #include "nsNSSComponent.h"
 #include "ScopedNSSTypes.h"
 #include "mozilla/dom/CryptoKey.h"
@@ -26,6 +27,35 @@ const SEC_ASN1Template SECKEY_DHParamKeyTemplate[] = {
     { SEC_ASN1_INTEGER, offsetof(SECKEYPublicKey,u.dh.base), },
     { SEC_ASN1_SKIP_REST },
     { 0, }
+};
+
+// PKCS#8 template for private EC keys. TODO
+struct SECKEY_ECPrivateKey {
+  SECItem version;
+  SECItem privateKey;
+  SECItem parameters;
+  SECItem publicKey;
+};
+const SEC_ASN1Template SECKEY_ECPrivateKeyTemplate[] = {
+    { SEC_ASN1_SEQUENCE, 0, NULL, sizeof(SECKEY_ECPrivateKey) },
+    { SEC_ASN1_INTEGER, offsetof(SECKEY_ECPrivateKey,version) },
+    { SEC_ASN1_OCTET_STRING, offsetof(SECKEY_ECPrivateKey,privateKey) },
+    // Per RFC 5915 EC parameters are optional per ASN.1 but at the same time
+    // MUST be included to conform with the RFC. The WebCrypto spec requires
+    // those as well, we can't determine a namedCurve otherwise.
+    { SEC_ASN1_EXPLICIT | SEC_ASN1_CONSTRUCTED | SEC_ASN1_CONTEXT_SPECIFIC | 0,
+        offsetof(SECKEY_ECPrivateKey,parameters),
+        // We know this is a SEC_ObjectIDTemplate but need to use
+        // SEC_AnyTemplate here to get the full ASN.1 encoded
+        // data including the two OID and length octets.
+        SEC_ASN1_SUB(SEC_ASN1_GET(SEC_AnyTemplate)) },
+    // publicKey is optional per RFC 5915 but it's mentioned that it SHOULD
+    // always be included in conforming implementations.
+    { SEC_ASN1_EXPLICIT | SEC_ASN1_CONSTRUCTED | SEC_ASN1_CONTEXT_SPECIFIC |
+      SEC_ASN1_OPTIONAL | 1,
+        offsetof(SECKEY_ECPrivateKey,publicKey),
+        SEC_ASN1_SUB(SEC_BitStringTemplate) },
+    { 0 }
 };
 
 namespace mozilla {
@@ -503,17 +533,61 @@ CryptoKey::PrivateKeyFromPkcs8(CryptoBuffer& aKeyData,
     return nullptr;
   }
 
-  // Allow everything, we enforce usage ourselves
-  unsigned int usage = KU_ALL;
-
-  SECStatus rv = PK11_ImportDERPrivateKeyInfoAndReturnKey(
-                 slot.get(), &pkcs8Item, nullptr, nullptr, false, false,
-                 usage, &privKey, nullptr);
-
-  if (rv == SECFailure) {
+  SECKEYPrivateKeyInfo* pki = PORT_ArenaZNew(arena, SECKEYPrivateKeyInfo);
+  if (!pki) {
     return nullptr;
   }
-  return privKey;
+
+  SECStatus rv = SEC_ASN1DecodeItem(arena, pki, SECKEY_PrivateKeyInfoTemplate,
+                                    &pkcs8Item);
+  if (rv != SECSuccess) {
+    return nullptr;
+  }
+
+  // If the private key algorithm is *not* id-ecDH or id-ecPublicKey then we
+  // can take the short route as NSS supports PKCS8 import for those.
+  if (!SECITEM_ItemsAreEqual(&SEC_OID_DATA_EC_DH, &pki->algorithm.algorithm) &&
+      SECOID_GetAlgorithmTag(&pki->algorithm) != SEC_OID_ANSIX962_EC_PUBLIC_KEY) {
+    // Allow everything, we enforce usage ourselves
+    unsigned int usage = KU_ALL;
+
+    rv = PK11_ImportDERPrivateKeyInfoAndReturnKey(slot, &pkcs8Item, nullptr,
+                                                  nullptr, false, false, usage,
+                                                  &privKey, nullptr);
+    if (rv == SECFailure) {
+      return nullptr;
+    }
+    return privKey;
+  }
+
+  // ECDH private key import.
+  SECKEY_ECPrivateKey* eck =
+    (SECKEY_ECPrivateKey*) PORT_ArenaZAlloc(arena, sizeof(SECKEY_ECPrivateKey));
+  if (!eck) {
+    return nullptr;
+  }
+
+  rv = SEC_ASN1DecodeItem(arena, eck, SECKEY_ECPrivateKeyTemplate,
+                          &pki->privateKey);
+  if (rv != SECSuccess) {
+    return nullptr;
+  }
+
+  SECItem* params = &pki->algorithm.parameters;
+
+  // Check that the namedCurve is the same as given in PrivateKeyInfo.
+  if (eck->parameters.len && !SECITEM_ItemsAreEqual(params, &eck->parameters)) {
+    return nullptr;
+  }
+
+  // The public key is a bit string.
+  eck->publicKey.len /= 8;
+
+  // TODO check for a point on the curve
+
+  // TODO compute public key if none was given
+
+  return MakePrivateECDHKey(params, &eck->publicKey, &eck->privateKey);
 }
 
 SECKEYPublicKey*
@@ -573,15 +647,104 @@ CryptoKey::PublicKeyFromSpki(CryptoBuffer& aKeyData,
   return SECKEY_CopyPublicKey(tmp);
 }
 
+bool ReadAttribute(SECKEYPrivateKey* aKey,
+                   CK_ATTRIBUTE_TYPE aAttribute,
+                   PLArenaPool* aArena,
+                   SECItem* aDest)
+{
+  ScopedSECItem item(::SECITEM_AllocItem(nullptr, nullptr, 0));
+  if (!item) {
+    return false;
+  }
+
+  SECStatus rv = PK11_ReadRawAttribute(PK11_TypePrivKey, aKey, aAttribute, item);
+  if (rv != SECSuccess) {
+    return false;
+  }
+
+  // Copy data into SECItem allocated in the given arena.
+  rv = SECITEM_CopyItem(aArena, aDest, item);
+
+  return rv == SECSuccess;
+}
+
 nsresult
 CryptoKey::PrivateKeyToPkcs8(SECKEYPrivateKey* aPrivKey,
                        CryptoBuffer& aRetVal,
                        const nsNSSShutDownPreventionLock& /*proofOfLock*/)
 {
-  ScopedSECItem pkcs8Item(PK11_ExportDERPrivateKeyInfo(aPrivKey, nullptr));
-  if (!pkcs8Item.get()) {
-    return NS_ERROR_DOM_INVALID_ACCESS_ERR;
+  SECKEYPrivateKeyInfo* pki;
+  ScopedPLArenaPool arena;
+
+  if (aPrivKey->keyType == ecKey) {
+    arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+    if (!arena) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
+
+    pki = PORT_ArenaZNew(arena, SECKEYPrivateKeyInfo);
+    if (!pki) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
+
+    // Set PrivateKeyInfo version.
+    pki->version.type = siUnsignedInteger;
+    DER_SetUInteger(arena, &pki->version, 0);
+
+    // Per WebCrypto spec we must export ECDH PKCS8s with the algorithm OID
+    // id-ecDH (1.3.132.112). NSS doesn't know about that OID and there is
+    // no way to specify the algorithm to use when exporting a private key.
+    SECStatus rv = SECITEM_CopyItem(arena, &pki->algorithm.algorithm,
+                                    &SEC_OID_DATA_EC_DH);
+    if (rv != SECSuccess) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
+
+    // Set parameters.
+    if (!ReadAttribute(aPrivKey, CKA_EC_PARAMS, arena,
+                       &pki->algorithm.parameters)) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
+
+    SECKEY_ECPrivateKey eck;
+
+    // Set ECPrivateKey version.
+    eck.version.type = siUnsignedInteger;
+    DER_SetUInteger(arena, &eck.version, 1);
+
+    // Set private key.
+    if (!ReadAttribute(aPrivKey, CKA_VALUE, arena, &eck.privateKey)) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
+
+    // Set parameters.
+    rv = SECITEM_CopyItem(arena, &eck.parameters, &pki->algorithm.parameters);
+    if (rv != SECSuccess) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
+
+    // Set public key.
+    if (!ReadAttribute(aPrivKey, CKA_EC_POINT, arena, &eck.publicKey)) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
+
+    // The public key is a bit string.
+    eck.publicKey.len *= 8;
+
+    if (!SEC_ASN1EncodeItem(arena, &pki->privateKey, &eck,
+                            SECKEY_ECPrivateKeyTemplate)) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
+  } else {
+    pki = PK11_ExportPrivKeyInfo(aPrivKey, nullptr);
+    if (!pki) {
+      return NS_ERROR_DOM_OPERATION_ERR;
+    }
   }
+
+  ScopedSECItem pkcs8Item(SEC_ASN1EncodeItem(
+    nullptr, nullptr, pki, SEC_ASN1_GET(SECKEY_PrivateKeyInfoTemplate)));
+
   if (!aRetVal.Assign(pkcs8Item.get())) {
     return NS_ERROR_DOM_OPERATION_ERR;
   }
