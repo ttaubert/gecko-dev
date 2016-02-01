@@ -327,6 +327,7 @@ PK11_DigestBegin
 PK11_DigestFinal
 PK11_DigestOp
 PK11_DoesMechanism
+PK11_EC_ValidatePublicKey
 PK11_Encrypt
 PK11_ExportDERPrivateKeyInfo
 PK11_ExportEncryptedPrivKeyInfo

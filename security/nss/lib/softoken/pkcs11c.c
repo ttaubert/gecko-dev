@@ -7493,3 +7493,21 @@ CK_RV NSC_DigestKey(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hKey)
     sftk_FreeAttribute(att);
     return crv;
 }
+
+/* TODO */
+CK_RV NSC_EC_ValidatePublicKey(CK_BYTE_PTR pParams, CK_ULONG ulParamsLen,
+                               CK_BYTE_PTR pData, CK_ULONG ulDataLen)
+{
+    SECStatus rv;
+    ECParams* ecparams;
+    SECItem params = { siBuffer, pParams, ulParamsLen };
+    SECItem value = { siBuffer, pData, ulDataLen };
+
+    rv = EC_DecodeParams(&params, &ecparams);
+    if (rv != SECSuccess) return sftk_MapCryptError(PORT_GetError());
+
+    rv = EC_ValidatePublicKey(ecparams, &value);
+    if (rv != SECSuccess) return sftk_MapCryptError(PORT_GetError());
+
+    return CKR_OK;
+}

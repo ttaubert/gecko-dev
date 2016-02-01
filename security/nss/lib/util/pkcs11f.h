@@ -903,3 +903,14 @@ CK_PKCS11_FUNCTION_INFO(C_WaitForSlotEvent)
   CK_VOID_PTR pRserved   /* reserved.  Should be NULL_PTR */
 );
 #endif
+
+/* TODO */
+CK_PKCS11_FUNCTION_INFO(C_EC_ValidatePublicKey)
+#ifdef CK_NEED_ARG_LIST
+(
+  CK_BYTE_PTR pParams,   /* TODO */
+  CK_ULONG ulParamsLen,  /* TODO */
+  CK_BYTE_PTR pData,     /* TODO */
+  CK_ULONG ulDataLen     /* TODO */
+);
+#endif

@@ -83,6 +83,7 @@ PK11_DigestBegin;
 PK11_DigestOp;
 PK11_DigestFinal;
 PK11_DoesMechanism;
+PK11_EC_ValidatePublicKey;
 PK11_FindCertFromNickname;
 PK11_FindCertFromDERCert;
 PK11_FindCertByIssuerAndSN;

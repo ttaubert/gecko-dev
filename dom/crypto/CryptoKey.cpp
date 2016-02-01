@@ -517,7 +517,6 @@ SECKEYPrivateKey*
 CryptoKey::PrivateKeyFromPkcs8(CryptoBuffer& aKeyData,
                          const nsNSSShutDownPreventionLock& /*proofOfLock*/)
 {
-  SECKEYPrivateKey* privKey;
   ScopedPK11SlotInfo slot(PK11_GetInternalSlot());
   if (!slot) {
     return nullptr;
@@ -551,6 +550,7 @@ CryptoKey::PrivateKeyFromPkcs8(CryptoBuffer& aKeyData,
     // Allow everything, we enforce usage ourselves
     unsigned int usage = KU_ALL;
 
+    SECKEYPrivateKey* privKey;
     rv = PK11_ImportDERPrivateKeyInfoAndReturnKey(slot, &pkcs8Item, nullptr,
                                                   nullptr, false, false, usage,
                                                   &privKey, nullptr);
@@ -575,6 +575,7 @@ CryptoKey::PrivateKeyFromPkcs8(CryptoBuffer& aKeyData,
 
   SECItem* params = &pki->algorithm.parameters;
 
+  // TODO write a test for this.
   // Check that the namedCurve is the same as given in PrivateKeyInfo.
   if (eck->parameters.len && !SECITEM_ItemsAreEqual(params, &eck->parameters)) {
     return nullptr;
@@ -583,9 +584,65 @@ CryptoKey::PrivateKeyFromPkcs8(CryptoBuffer& aKeyData,
   // The public key is a bit string.
   eck->publicKey.len /= 8;
 
-  // TODO check for a point on the curve
+  // Construct OID.
+  SECItem oid = { siBuffer, nullptr, 0 };
+  oid.len = params->data[1];
+  oid.data = params->data + 2;
 
-  // TODO compute public key if none was given
+  uint32_t plen;
+  switch (SECOID_FindOIDTag(&oid)) {
+    case SEC_OID_SECG_EC_SECP256R1:
+      plen = 65;
+      break;
+    case SEC_OID_SECG_EC_SECP384R1:
+      plen = 97;
+      break;
+    case SEC_OID_SECG_EC_SECP521R1:
+      plen = 133;
+      break;
+    default:
+      // TODO write a test for this.
+      return nullptr;
+  }
+
+  // TODO
+  if (eck->publicKey.len == 0) {
+    // TODO compute public key if none was given
+    return nullptr;
+  } else if (eck->publicKey.len != plen) {
+    // TODO write a test for this.
+    return nullptr;
+  }
+
+  // Create a SPKI object.
+  /*CERTSubjectPublicKeyInfo spki = { nullptr };
+  rv = SECITEM_CopyItem(arena, &spki.subjectPublicKey, &eck->publicKey);
+  if (rv != SECSuccess) {
+    return nullptr;
+  }
+  spki.subjectPublicKey.len *= 8; / It's a BIT STRING. /
+
+  // Set the right algorithm ID.
+  rv = SECOID_SetAlgorithmID(arena, &spki.algorithm,
+                             SEC_OID_ANSIX962_EC_PUBLIC_KEY, params);
+  if (rv != SECSuccess) {
+    return nullptr;
+  }*/
+
+  // EC_NewKeyFromSeed() TODO
+
+  // TODO do we really need the slot?
+  rv = PK11_EC_ValidatePublicKey(slot, params, &eck->publicKey);
+  if (rv != SECSuccess) {
+    return nullptr;
+  }
+
+  /*// Check that the public key is a point on the curve.
+  ScopedSECKEYPublicKey tmp(SECKEY_ExtractPublicKey(&spki));
+  if (!tmp || !PublicKeyValid(tmp)) {
+    // TODO write a test for this.
+    return nullptr;
+  }*/
 
   return MakePrivateECDHKey(params, &eck->publicKey, &eck->privateKey);
 }

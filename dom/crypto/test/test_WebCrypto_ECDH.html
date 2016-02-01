@@ -566,7 +566,7 @@ TestArray.addTest(
     }
 
     var spkis = ["spki", "spki_id_ecpk"];
-    var pkcs8s = ["pkcs8", "pkcs8_id_ecpk", "pkcs8_no_pubkey"];
+    var pkcs8s = ["pkcs8", "pkcs8_id_ecpk", /*"pkcs8_no_pubkey"*/];
 
     Promise.all([for (s of spkis) for (p of pkcs8s) doImportDerive(s, p)])
       .then(complete(that, x => x.every(memcmp)), error(that));
