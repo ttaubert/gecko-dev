@@ -499,6 +499,8 @@ SECKEYPublicKey*
 CryptoKey::PublicKeyFromSpki(CryptoBuffer& aKeyData,
                        const nsNSSShutDownPreventionLock& /*proofOfLock*/)
 {
+  SECStatus rv;
+
   ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
   if (!arena) {
     return nullptr;
@@ -537,15 +539,26 @@ CryptoKey::PublicKeyFromSpki(CryptoBuffer& aKeyData,
       return nullptr;
     }
 
-    SECStatus rv = SECITEM_CopyItem(spki->arena, &spki->algorithm.algorithm,
-                                    &oidData->oid);
+    rv = SECITEM_CopyItem(spki->arena, &spki->algorithm.algorithm, &oidData->oid);
     if (rv != SECSuccess) {
       return nullptr;
     }
   }
 
+  SECItem* params = &spki->algorithm.parameters;
+  // The public value is a BIT STRING, length is given in bits.
+  SECItem publicValue = { siBuffer, spki->subjectPublicKey.data,
+                          spki->subjectPublicKey.len / 8 };
+
+  // If this is an EC key, ensure the given point is on the curve.
+  const SECOidTag oid = SEC_OID_ANSIX962_EC_PUBLIC_KEY;
+  if (SECOID_GetAlgorithmTag(&spki->algorithm) == oid &&
+      PK11_ValidateCurvePoint(params, &publicValue) != SECSuccess) {
+    return nullptr;
+  }
+
   ScopedSECKEYPublicKey tmp(SECKEY_ExtractPublicKey(spki.get()));
-  if (!tmp.get() || !PublicKeyValid(tmp.get())) {
+  if (!tmp) {
     return nullptr;
   }
 
@@ -725,6 +738,14 @@ CryptoKey::PrivateKeyFromJwk(const JsonWebKey& aJwk,
 
     SECItem* ecPoint = CreateECPointForCoordinates(x, y, arena.get());
     if (!ecPoint) {
+      return nullptr;
+    }
+
+    // Check that the given point (x,y) corresponds to the private value d.
+    // If it does, then (x,y) will be a valid point on the curve.
+    SECItem secret = { siBuffer, d.Elements(), (unsigned int) d.Length() };
+    ScopedSECItem publicValue(PK11_CurvePointFromSecret(params, &secret));
+    if (!publicValue || !SECITEM_ItemsAreEqual(publicValue, ecPoint)) {
       return nullptr;
     }
 
@@ -990,18 +1011,17 @@ CreateECPublicKey(const SECItem* aKeyData, const nsString& aNamedCurve)
 
   // Create curve parameters.
   SECItem* params = CreateECParamsForCurve(aNamedCurve, arena);
-  if (!params) {
+
+  // Ensure the given point is on the curve.
+  if (!params || PK11_ValidateCurvePoint(params, aKeyData) != SECSuccess) {
     return nullptr;
   }
+
+  // Set named curve.
   key->u.ec.DEREncodedParams = *params;
 
   // Set public point.
   key->u.ec.publicValue = *aKeyData;
-
-  // Ensure the given point is on the curve.
-  if (!CryptoKey::PublicKeyValid(key)) {
-    return nullptr;
-  }
 
   return SECKEY_CopyPublicKey(key);
 }
@@ -1200,26 +1220,6 @@ CryptoKey::PublicECKeyToRaw(SECKEYPublicKey* aPubKey,
     return NS_ERROR_DOM_OPERATION_ERR;
   }
   return NS_OK;
-}
-
-bool
-CryptoKey::PublicKeyValid(SECKEYPublicKey* aPubKey)
-{
-  ScopedPK11SlotInfo slot(PK11_GetInternalSlot());
-  if (!slot.get()) {
-    return false;
-  }
-
-  // This assumes that NSS checks the validity of a public key when
-  // it is imported into a PKCS#11 module, and returns CK_INVALID_HANDLE
-  // if it is invalid.
-  CK_OBJECT_HANDLE id = PK11_ImportPublicKey(slot, aPubKey, PR_FALSE);
-  if (id == CK_INVALID_HANDLE) {
-    return false;
-  }
-
-  SECStatus rv = PK11_DestroyObject(slot, id);
-  return (rv == SECSuccess);
 }
 
 bool

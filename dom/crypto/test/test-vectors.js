@@ -699,6 +699,13 @@ tv = {
       "405dd1f1adeb090107edcfb2b4963739d87679e3056cb0557d0adf"
     ),
 
+    // vector with public key not on curve
+    spki_off_curve: util.hex2abv(
+      "3056301006042b81047006082a8648ce3d030107034200045ce7b86e3b326604" +
+      "03e63712ef0998deae1027faec3c1be9f76f934dfeb58e98f4cf075b39405dd1" +
+      "f1adeb090107edcfb2b4963739d87679e3056cb0557d0ade"
+    ),
+
     raw: util.hex2abv(
       "045ce7b86e3b32660403e63712ef0998deae1027faec3c1be9f76f934dfeb58e" +
       "98f4cf075b39405dd1f1adeb090107edcfb2b4963739d87679e3056cb0557d0adf"
@@ -723,6 +730,22 @@ tv = {
       kty: "EC",
       crv: "P-384",
       d: "RT8f0pRw4CL1Tgk4rwuNnNbFoQBNTTBkr7WVLLm4fDA3boYZpNB_t-rbMVLx0CRp",
+      x: "_XwhXRnOzEfCsWIRCz3QLClaDkigQFvXmqYNdh/7vJdADykPbfGi1VgAu3XJdXoD",
+      y: "S1P_FBCXYGE-5VPvTCRnFT7bPIPmUPV9qKTM24TQFYEUgIDfzCLsyGCWK-rhP6jU"
+    },
+
+    jwk_priv_off_curve: {
+      kty: "EC",
+      crv: "P-384",
+      d: "RT8f0pRw4CL1Tgk4rwuNnNbFoQBNTTBkr7WVLLm4fDA3boYZpNB_t-rbMVLx0CRp",
+      x: "_XwhXRnOzEfCsWIRCz3QLClaDkigQFvXmqYNdh/7vJdADykPbfGi1VgAu3XJdXoA",
+      y: "S1P_FBCXYGE-5VPvTCRnFT7bPIPmUPV9qKTM24TQFYEUgIDfzCLsyGCWK-rhP6jU"
+    },
+
+    jwk_priv_wrong_d: {
+      kty: "EC",
+      crv: "P-384",
+      d: "RT9f0pRw4CL1Tgk4rwuNnNbFoQBNTTBkr7WVLLm4fDA3boYZpNB_t-rbMVLx0CRp",
       x: "_XwhXRnOzEfCsWIRCz3QLClaDkigQFvXmqYNdh/7vJdADykPbfGi1VgAu3XJdXoD",
       y: "S1P_FBCXYGE-5VPvTCRnFT7bPIPmUPV9qKTM24TQFYEUgIDfzCLsyGCWK-rhP6jU"
     },

@@ -207,6 +207,32 @@ TestArray.addTest(
 
 // -----------------------------------------------------------------------------
 TestArray.addTest(
+  "Importing a private key with a public point not on the curve should fail",
+  function () {
+    var that = this;
+    var alg = { name: "ECDH" };
+    var vec = tv.ecdh_p384.jwk_priv_off_curve;
+
+    crypto.subtle.importKey("jwk", vec, alg, false, ["deriveBits"])
+      .then(error(that), complete(that));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "Importing a private key with a point (x, y) ≠ G*d should fail",
+  function () {
+    var that = this;
+    var alg = { name: "ECDH" };
+    var vec = tv.ecdh_p384.jwk_priv_wrong_d;
+
+    crypto.subtle.importKey("jwk", vec, alg, false, ["deriveBits"])
+      .then(error(that), complete(that));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
   "JWK import an ECDH public and private key and derive bits (P-521)",
   function () {
     var that = this;
@@ -410,6 +436,19 @@ TestArray.addTest(
     }
 
     nextKey().then(complete(that), error(that));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "Importing a public key with a point not on the curve should fail",
+  function () {
+    var that = this;
+    var alg = { name: "ECDH" };
+    var vec = tv.ecdh_p256.spki_off_curve;
+
+    crypto.subtle.importKey("spki", vec, alg, false, ["deriveBits"])
+      .then(error(that), complete(that));
   }
 );
 
