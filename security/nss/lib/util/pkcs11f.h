@@ -903,3 +903,15 @@ CK_PKCS11_FUNCTION_INFO(C_WaitForSlotEvent)
   CK_VOID_PTR pRserved   /* reserved.  Should be NULL_PTR */
 );
 #endif
+
+/* C_ValidateCurvePoint checks whether a given point is on a
+ * given curve. */
+CK_PKCS11_FUNCTION_INFO(C_ValidateCurvePoint)
+#ifdef CK_NEED_ARG_LIST
+(
+  CK_BYTE_PTR pParams,   /* named curve parameters */
+  CK_ULONG ulParamsLen,  /* length of parameters in bytes */
+  CK_BYTE_PTR pData,     /* the point to validate */
+  CK_ULONG ulDataLen     /* length of the point in bytes */
+);
+#endif

@@ -2391,3 +2391,23 @@ PK11_ListPrivKeysInSlot(PK11SlotInfo *slot, char *nickname, void *wincx)
    return keys;
 }
 
+SECStatus
+PK11_ValidateCurvePoint(const SECItem *params,
+                        const SECItem *publicValue)
+{
+    CK_RV crv;
+    SECStatus rv = SECFailure;
+    PK11SlotInfo *slot = PK11_GetInternalSlot();
+
+    PK11_EnterSlotMonitor(slot);
+    crv = PK11_GETTAB(slot)->C_ValidateCurvePoint(params->data,
+                                                  params->len,
+                                                  publicValue->data,
+                                                  publicValue->len);
+    if (crv == CKR_OK) {
+        rv = SECSuccess;
+    }
+    PK11_ExitSlotMonitor(slot);
+    return rv;
+}
+

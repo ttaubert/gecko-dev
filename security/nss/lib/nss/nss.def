@@ -1097,3 +1097,9 @@ PK11_VerifyWithMechanism;
 ;+    local:
 ;+       *;
 ;+};
+;+NSS_3.23 { 	# NSS 3.23 release
+;+    global:
+PK11_ValidateCurvePoint;
+;+    local:
+;+       *;
+;+};

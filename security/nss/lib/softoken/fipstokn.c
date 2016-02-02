@@ -1549,3 +1549,11 @@ CK_RV FC_WaitForSlotEvent(CK_FLAGS flags, CK_SLOT_ID_PTR pSlot,
 
     return NSC_WaitForSlotEvent(flags, pSlot, pReserved);
 }
+
+CK_RV FC_ValidateCurvePoint(CK_BYTE_PTR pParams, CK_ULONG ulParamsLen,
+                            CK_BYTE_PTR pData, CK_ULONG ulDataLen)
+{
+    CHECK_FORK();
+
+    return NSC_ValidateCurvePoint(pParams, ulParamsLen, pData, ulDataLen);
+}
