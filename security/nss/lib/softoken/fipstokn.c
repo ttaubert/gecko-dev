@@ -1557,3 +1557,14 @@ CK_RV FC_ValidateCurvePoint(CK_BYTE_PTR pParams, CK_ULONG ulParamsLen,
 
     return NSC_ValidateCurvePoint(pParams, ulParamsLen, pData, ulDataLen);
 }
+
+CK_RV FC_CurvePointFromSecret(CK_BYTE_PTR pParams, CK_ULONG ulParamsLen,
+                              CK_BYTE_PTR pSecret, CK_ULONG ulSecretLen,
+                              CK_BYTE_PTR *pData, CK_ULONG_PTR ulDataLen)
+{
+    CHECK_FORK();
+
+    return NSC_CurvePointFromSecret(pParams, ulParamsLen,
+                                    pSecret, ulSecretLen,
+                                    pData, ulDataLen);
+}

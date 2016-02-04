@@ -2411,3 +2411,34 @@ PK11_ValidateCurvePoint(const SECItem *params,
     return rv;
 }
 
+SECItem*
+PK11_CurvePointFromSecret(const SECItem *params, const SECItem *secret)
+{
+    CK_RV crv;
+    SECItem *retval;
+    CK_BYTE_PTR publicValue;
+    CK_ULONG publicValueLen;
+    PK11SlotInfo *slot = PK11_GetInternalSlot();
+
+    PK11_EnterSlotMonitor(slot);
+    crv = PK11_GETTAB(slot)->C_CurvePointFromSecret(params->data,
+                                                    params->len,
+                                                    secret->data,
+                                                    secret->len,
+                                                    &publicValue,
+                                                    &publicValueLen);
+
+    PK11_ExitSlotMonitor(slot);
+    if (crv != CKR_OK) {
+        return NULL;
+    }
+
+    retval = SECITEM_AllocItem(NULL, NULL, 0);
+    if (!retval) {
+        return NULL;
+    }
+
+    retval->data = publicValue;
+    retval->len = publicValueLen;
+    return retval;
+}

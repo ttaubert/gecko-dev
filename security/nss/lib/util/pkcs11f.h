@@ -915,3 +915,17 @@ CK_PKCS11_FUNCTION_INFO(C_ValidateCurvePoint)
   CK_ULONG ulDataLen     /* length of the point in bytes */
 );
 #endif
+
+/* C_CurvePointFromSecret computes the public point
+ * corresponding to a given secret value and curve. */
+CK_PKCS11_FUNCTION_INFO(C_CurvePointFromSecret)
+#ifdef CK_NEED_ARG_LIST
+(
+  CK_BYTE_PTR pParams,   /* named curve parameters */
+  CK_ULONG ulParamsLen,  /* length of parameters in bytes */
+  CK_BYTE_PTR pSecret,   /* the secret value */
+  CK_ULONG ulSecretLen,  /* length of secret value in bytes */
+  CK_BYTE_PTR *pData,    /* output parameter for point */
+  CK_ULONG_PTR ulDataLen /* length of point in bytes */
+);
+#endif

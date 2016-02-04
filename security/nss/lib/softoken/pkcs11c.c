@@ -7513,3 +7513,38 @@ CK_RV NSC_ValidateCurvePoint(CK_BYTE_PTR pParams, CK_ULONG ulParamsLen,
 
     return CKR_OK;
 }
+
+/* NSC_CurvePointFromSecret computes the curve point corresponding to a
+ * given secret value on a given curve */
+CK_RV NSC_CurvePointFromSecret(CK_BYTE_PTR pParams, CK_ULONG ulParamsLen,
+                               CK_BYTE_PTR pSecret, CK_ULONG ulSecretLen,
+                               CK_BYTE_PTR *pData, CK_ULONG_PTR ulDataLen)
+{
+    SECStatus rv;
+    ECParams* ecparams;
+    ECPrivateKey* privKey;
+    unsigned int curveLen;
+    SECItem params = { siBuffer, pParams, ulParamsLen };
+
+    *pData = NULL;
+    rv = EC_DecodeParams(&params, &ecparams);
+    if (rv != SECSuccess) return sftk_MapCryptError(PORT_GetError());
+    curveLen = (ecparams->fieldID.size + 7) / 8;
+    *ulDataLen = curveLen * 2 + 1;
+
+    rv = EC_NewKeyFromSeed(ecparams, &privKey, pSecret, ulSecretLen);
+    PORT_FreeArena(ecparams->arena, PR_TRUE);
+    if (rv != SECSuccess) return sftk_MapCryptError(PORT_GetError());
+
+    *pData = PORT_Alloc(*ulDataLen);
+    if (*pData == NULL) {
+        PORT_FreeArena(privKey->ecParams.arena, PR_TRUE);
+        return CKR_HOST_MEMORY;
+    }
+
+    PORT_Assert(privKey->publicValue.len == *ulDataLen);
+    memcpy(*pData, privKey->publicValue.data, *ulDataLen);
+    PORT_FreeArena(privKey->ecParams.arena, PR_TRUE);
+
+    return CKR_OK;
+}

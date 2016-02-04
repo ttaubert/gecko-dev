@@ -397,6 +397,9 @@ PK11_DeriveWithTemplate( PK11SymKey *baseKey, CK_MECHANISM_TYPE derive,
 SECStatus
 PK11_ValidateCurvePoint(const SECItem *params, const SECItem *publicValue);
 
+SECItem*
+PK11_CurvePointFromSecret(const SECItem *params, const SECItem *secret);
+
 PK11SymKey *PK11_PubDerive( SECKEYPrivateKey *privKey, 
  SECKEYPublicKey *pubKey, PRBool isSender, SECItem *randomA, SECItem *randomB,
  CK_MECHANISM_TYPE derive, CK_MECHANISM_TYPE target,
