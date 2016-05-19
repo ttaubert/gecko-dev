@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>WebCrypto Test Suite</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link rel="stylesheet" href="./test_WebCrypto.css"/>
+<script src="/tests/SimpleTest/SimpleTest.js"></script>
+
+<!-- Utilities for manipulating ABVs -->
+<script src="util.js"></script>
+
+<!-- A simple wrapper around IndexedDB -->
+<script src="simpledb.js"></script>
+
+<!-- Test vectors drawn from the literature -->
+<script src="./test-vectors.js"></script>
+
+<!-- General testing framework -->
+<script src="./test-array.js"></script>
+
+<script>/*<![CDATA[*/
+"use strict";
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "generateKey() should return NotSupportedError for unknown algorithms",
+  function() {
+    var that = this;
+    var alg = {name: "SomeAlgorithm", length: 128};
+
+    crypto.subtle.generateKey(alg, false, ["encrypt", "decrypt"])
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "generateKey(HMAC) should return NotSupportedError for unknown hash algorithms",
+  function() {
+    var that = this;
+    var alg = { name: "HMAC", length: 256, hash: {name: "SomeHashAlgorithm"} };
+
+    crypto.subtle.generateKey(alg, false, ["sign", "verify"])
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "generateKey(RSA) should return NotSupportedError for unknown hash algorithms",
+  function () {
+    var that = this;
+    var alg = {
+      name: "RSA-PSS",
+      hash: "SomeHashAlgorithm",
+      modulusLength: 1024,
+      publicExponent: new Uint8Array([0x01, 0x00, 0x01])
+    };
+
+    crypto.subtle.generateKey(alg, false, ["sign", "verify"])
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "digest() should return NotSupportedError for unknown hash algorithms",
+  function() {
+    var that = this;
+
+    crypto.subtle.digest("SomeHashAlgorithm", tv.sha256.data)
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "importKey() should return NotSupportedError for unknown algorithms",
+  function () {
+    var that = this;
+    var alg = { name: "SomeAlgorithm" };
+
+    crypto.subtle.importKey("raw", tv.hmac_sign.key, alg, false, ["sign"])
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "importKey(HMAC) should return NotSupportedError for unknown hash algorithms",
+  function () {
+    var that = this;
+    var alg = { name: "HMAC", hash: "SomeHashAlgorithm" };
+
+    crypto.subtle.importKey("raw", tv.hmac_sign.key, alg, false, ["sign"])
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "importKey(RSA) should return NotSupportedError for unknown hash algorithms",
+  function () {
+    var that = this;
+    var alg = { name: "RSA-PSS", hash: "SomeHashAlgorithm" };
+
+    crypto.subtle.importKey("spki", tv.rsapss.spki, alg, false, ["verify"])
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "ECDSA verify should return NotSupportedError for unknown hash algorithms",
+  function() {
+    var that = this;
+    var alg = { name: "ECDSA", namedCurve: "P-521", hash: "SomeHashAlgorithm" };
+
+    function doVerify(x) {
+      return crypto.subtle.verify(alg, x, tv.ecdsa_verify.sig, tv.ecdsa_verify.data);
+    }
+
+    crypto.subtle.importKey("jwk", tv.ecdsa_verify.pub_jwk, alg, false, ["verify"])
+      .then(doVerify, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "ECDSA sign should return NotSupportedError for unknown hash algorithms",
+  function() {
+    var that = this;
+    var alg = { name: "ECDSA", namedCurve: "P-521", hash: "SomeHashAlgorithm" };
+
+    function doSign(keyPair) {
+      return crypto.subtle.sign(alg, keyPair.privateKey, tv.ecdsa_verify.data);
+    }
+
+    crypto.subtle.generateKey(alg, false, ["sign"])
+      .then(doSign, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "encrypt() should return NotSupportedError for unknown algorithms",
+  function() {
+    var that = this;
+    var alg = { name: "SomeAlgorithm" };
+
+    function doEncrypt(x) {
+      return crypto.subtle.encrypt(alg, x, tv.aes_cbc_enc.data);
+    }
+
+    crypto.subtle.importKey("raw", tv.aes_cbc_enc.key, "AES-CBC", false, ["encrypt"])
+      .then(doEncrypt, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "decrypt() should return NotSupportedError for unknown algorithms",
+  function() {
+    var that = this;
+    var alg = { name: "SomeAlgorithm" };
+
+    function doDecrypt(x) {
+      return crypto.subtle.decrypt(alg, x, tv.aes_cbc_dec.data);
+    }
+
+    crypto.subtle.importKey("raw", tv.aes_cbc_dec.key, "AES-CBC", false, ["decrypt"])
+      .then(doDecrypt, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "deriveBits() should return NotSupportedError for unknown algorithms",
+  function() {
+    var that = this;
+    var alg = { name: "SomeAlgorithm" };
+
+    function doDerive(x) {
+      return crypto.subtle.deriveBits(alg, x, tv.pbkdf2_sha1.length);
+    }
+
+    crypto.subtle.importKey("raw", tv.pbkdf2_sha1.password, "PBKDF2", false, ["deriveBits"])
+      .then(doDerive, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "deriveBits(PBKDF2) should return NotSupportedError for unknown hash algorithms",
+  function() {
+    var that = this;
+    var alg = {
+      name: "PBKDF2",
+      hash: "SomeHashAlgorithm",
+      salt: tv.pbkdf2_sha1.salt,
+      iterations: tv.pbkdf2_sha1.iterations
+    };
+
+    function doDerive(x) {
+      return crypto.subtle.deriveBits(alg, x, tv.pbkdf2_sha1.length);
+    }
+
+    crypto.subtle.importKey("raw", tv.pbkdf2_sha1.password, "PBKDF2", false, ["deriveBits"])
+      .then(doDerive, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "deriveBits(HKDF) should return NotSupportedError for unknown hash algorithms",
+  function() {
+    var that = this;
+    var vec = tv.hkdf[0];
+    var alg = {
+      name: "HKDF",
+      hash: "SomeHashAlgorithm",
+      salt: vec.salt,
+      info: vec.info
+    };
+
+    function doDerive(x) {
+      return crypto.subtle.deriveBits(alg, x, tv.pbkdf2_sha1.length);
+    }
+
+    crypto.subtle.importKey("raw", vec.key, "HKDF", false, ["deriveBits"])
+      .then(doDerive, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "deriveBits(PBKDF2) should return NotSupportedError for unknown hash algorithms",
+  function() {
+    var that = this;
+    var alg = {
+      name: "PBKDF2",
+      hash: "SomeHashAlgorithm",
+      salt: tv.pbkdf2_sha1.salt,
+      iterations: tv.pbkdf2_sha1.iterations
+    };
+
+    function doDerive(x) {
+      return crypto.subtle.deriveBits(alg, x, tv.pbkdf2_sha1.length);
+    }
+
+    crypto.subtle.importKey("raw", tv.pbkdf2_sha1.password, "PBKDF2", false, ["deriveBits"])
+      .then(doDerive, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "wrapKey() should return NotSupportedError for unknown algorithms",
+  function() {
+    var that = this;
+    var wrappingKey;
+    var vec = tv.key_wrap_known_answer;
+    var alg = { name: "AES-GCM", iv: vec.wrapping_iv, tagLength: 128 };
+
+    function doImport(k) {
+      wrappingKey = k;
+      return crypto.subtle.importKey("raw", vec.key, alg, true, ["encrypt"]);
+    }
+
+    function doWrap(k) {
+      return crypto.subtle.wrapKey("raw", k, wrappingKey, "SomeAlgorithm");
+    }
+
+    crypto.subtle.importKey("raw", vec.wrapping_key, alg, false, ["wrapKey"])
+      .then(doImport, error(that))
+      .then(doWrap, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+// -----------------------------------------------------------------------------
+TestArray.addTest(
+  "unwrapKey() should return NotSupportedError for unknown algorithms",
+  function() {
+    var that = this;
+    var vec = tv.key_wrap_known_answer;
+    var alg = { name: "AES-GCM", iv: vec.wrapping_iv, tagLength: 128 };
+
+    function doUnwrap(k) {
+      return crypto.subtle.unwrapKey("raw", vec.wrapped_key, k, alg,
+                                     "SomeAlgorithm", false, ["decrypt"]);
+    }
+
+    crypto.subtle.importKey("raw", vec.wrapping_key, alg, false, ["unwrapKey"])
+      .then(doUnwrap, error(that))
+      .then(error(that), complete(that, function (err) {
+        return err.name == "NotSupportedError";
+      }));
+  }
+);
+
+/*]]>*/</script>
+</head>
+
+<body>
+
+<div id="content">
+	<div id="head">
+		<b>Web</b>Crypto<br>
+	</div>
+
+    <iframe style="display: none;"></iframe>
+    <div id="start" onclick="start();">RUN ALL</div>
+
+    <div id="resultDiv" class="content">
+    Summary:
+    <span class="pass"><span id="passN">0</span> passed, </span>
+    <span class="fail"><span id="failN">0</span> failed, </span>
+    <span class="pending"><span id="pendingN">0</span> pending.</span>
+    <br/>
+    <br/>
+
+    <table id="results">
+        <tr>
+            <th>Test</th>
+            <th>Result</th>
+            <th>Time</th>
+        </tr>
+    </table>
+
+    </div>
+
+    <div id="foot"></div>
+</div>
+
+</body>
+</html>

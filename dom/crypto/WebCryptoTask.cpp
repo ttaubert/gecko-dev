@@ -155,7 +155,7 @@ GetAlgorithmName(JSContext* aCx, const OOS& aAlgorithm, nsString& aName)
   }
 
   if (!NormalizeToken(aName, aName)) {
-    return NS_ERROR_DOM_SYNTAX_ERR;
+    return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
   }
 
   return NS_OK;
@@ -1118,7 +1118,7 @@ public:
 
       mEarlyRv = GetAlgorithmName(aCx, params.mHash, hashAlgName);
       if (NS_FAILED(mEarlyRv)) {
-        mEarlyRv = NS_ERROR_DOM_SYNTAX_ERR;
+        mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
         return;
       }
     } else {
@@ -1256,7 +1256,8 @@ public:
     nsString algName;
     mEarlyRv = GetAlgorithmName(aCx, aAlgorithm, algName);
     if (NS_FAILED(mEarlyRv)) {
-      mEarlyRv = NS_ERROR_DOM_SYNTAX_ERR;
+      MOZ_ASSERT(false); // This shouldn't happen.
+      mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
       return;
     }
 
@@ -1324,7 +1325,8 @@ public:
 
     mEarlyRv = GetAlgorithmName(aCx, aAlgorithm, mAlgName);
     if (NS_FAILED(mEarlyRv)) {
-      mEarlyRv = NS_ERROR_DOM_DATA_ERR;
+      MOZ_ASSERT(false); // This shouldn't happen.
+      mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
       return;
     }
   }
@@ -1511,7 +1513,7 @@ public:
       }
       mEarlyRv = GetAlgorithmName(aCx, params.mHash, mHashName);
       if (NS_FAILED(mEarlyRv)) {
-        mEarlyRv = NS_ERROR_DOM_SYNTAX_ERR;
+        mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
         return;
       }
     }
@@ -1665,7 +1667,7 @@ public:
 
       mEarlyRv = GetAlgorithmName(aCx, params.mHash, mHashName);
       if (NS_FAILED(mEarlyRv)) {
-        mEarlyRv = NS_ERROR_DOM_DATA_ERR;
+        mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
         return;
       }
     }
@@ -2196,7 +2198,8 @@ public:
     nsString algName;
     mEarlyRv = GetAlgorithmName(aCx, aAlgorithm, algName);
     if (NS_FAILED(mEarlyRv)) {
-      mEarlyRv = NS_ERROR_DOM_SYNTAX_ERR;
+      MOZ_ASSERT(false); // This shouldn't happen.
+      mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
       return;
     }
 
@@ -2225,7 +2228,7 @@ public:
       nsString hashName;
       mEarlyRv = GetAlgorithmName(aCx, params.mHash, hashName);
       if (NS_FAILED(mEarlyRv)) {
-        mEarlyRv = NS_ERROR_DOM_SYNTAX_ERR;
+        mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
         return;
       }
 
@@ -2323,7 +2326,8 @@ GenerateAsymmetricKeyTask::GenerateAsymmetricKeyTask(
   // Extract algorithm name
   mEarlyRv = GetAlgorithmName(aCx, aAlgorithm, mAlgName);
   if (NS_FAILED(mEarlyRv)) {
-    mEarlyRv = NS_ERROR_DOM_SYNTAX_ERR;
+    MOZ_ASSERT(false); // This shouldn't happen.
+    mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
     return;
   }
 
@@ -2346,7 +2350,7 @@ GenerateAsymmetricKeyTask::GenerateAsymmetricKeyTask(
     nsString hashName;
     mEarlyRv = GetAlgorithmName(aCx, params.mHash, hashName);
     if (NS_FAILED(mEarlyRv)) {
-      mEarlyRv = NS_ERROR_DOM_SYNTAX_ERR;
+      mEarlyRv = NS_ERROR_DOM_NOT_SUPPORTED_ERR;
       return;
     }
 
