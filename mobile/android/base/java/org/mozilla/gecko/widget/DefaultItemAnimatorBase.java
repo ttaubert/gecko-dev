@@ -6,7 +6,6 @@
 package org.mozilla.gecko.widget;
 
 import android.support.annotation.NonNull;
-import android.support.v4.animation.AnimatorCompatHelper;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.view.ViewPropertyAnimatorCompat;
 import android.support.v4.view.ViewPropertyAnimatorListener;
@@ -481,8 +480,22 @@ public class DefaultItemAnimatorBase extends SimpleItemAnimator {
     }
 
     protected void resetAnimation(RecyclerView.ViewHolder holder) {
-        AnimatorCompatHelper.clearInterpolator(holder.itemView);
+        clearInterpolator(holder.itemView);
         endAnimation(holder);
+    }
+
+    protected void clearInterpolator(View view) {
+        view.setAlpha(1.0f);
+        view.setScaleY(1.0f);
+        view.setScaleX(1.0f);
+        view.setTranslationY(0.0f);
+        view.setTranslationX(0.0f);
+        view.setRotation(0.0f);
+        view.setRotationY(0.0f);
+        view.setRotationX(0.0f);
+        view.setPivotY((float)(view.getMeasuredHeight() / 2));
+        view.setPivotX((float) (view.getMeasuredWidth() / 2));
+        ViewCompat.animate(view).setInterpolator(null);
     }
 
     @Override

@@ -393,6 +393,39 @@ public class GeckoAppShell
         locationHighAccuracyEnabled = enable;
     }
 
+    @WrapForJNI(calledFrom = "gecko")
+    private static void webAuthnMakeCredential(String rpId, String rpName, String rpIcon,
+                                               String userId, String userName, String userIcon, String userDisplayName,
+                                               final ByteBuffer challenge, String origin) {
+        Class<?> activityCls;
+
+        try {
+            activityCls = Class.forName("org.mozilla.gecko.WebAuthnMakeCredentialActivity");
+        } catch (ClassNotFoundException e) {
+            Log.w(LOGTAG, "Class WebAuthnMakeCredentialActivity not found!");
+            return;
+        }
+
+        Intent intent = new Intent(getApplicationContext(), activityCls);
+
+        byte[] challBytes = new byte[16];
+        challenge.get(challBytes);
+        intent.putExtra("challenge", challBytes);
+
+        intent.putExtra("rpId", rpId);
+        intent.putExtra("rpName", rpName);
+        intent.putExtra("rpIcon", rpIcon);
+
+        intent.putExtra("userId", userId);
+        intent.putExtra("userName", userName);
+        intent.putExtra("userIcon", userIcon);
+        intent.putExtra("userDiplayName", userDisplayName);
+
+        intent.putExtra("origin", origin);
+
+        getApplicationContext().startActivity(intent);
+    }
+
     @WrapForJNI(calledFrom = "ui", dispatchTo = "gecko")
     /* package */ static native void onSensorChanged(int hal_type, float x, float y, float z,
                                                      float w, int accuracy, long time);

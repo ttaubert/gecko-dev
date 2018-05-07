@@ -236,8 +236,8 @@ dependencies {
     if (mozconfig.substs.MOZ_ANDROID_GCM) {
         implementation "com.google.android.gms:play-services-basement:$google_play_services_version"
         implementation "com.google.android.gms:play-services-base:$google_play_services_version"
+        implementation "com.google.android.gms:play-services-fido:$google_play_services_version"
         implementation "com.google.android.gms:play-services-gcm:$google_play_services_version"
-        implementation "com.google.android.gms:play-services-measurement:$google_play_services_version"
     }
 
     // Include LeakCanary in local builds, but not in official builds.  Mach

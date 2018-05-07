@@ -96,6 +96,11 @@ public class ChromeCastDisplay implements GeckoPresentationDisplay {
                     int code = errorReason.getStatusCode();
                     callback.sendError("Fail to start presentation. Error code: " + code);
                 }
+
+                @Override
+                public void onRemoteDisplaySessionEnded(CastRemoteDisplayLocalService service) {
+                    Log.d(LOGTAG, "Remote presentation ended!");
+                }
         });
     }
 

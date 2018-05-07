@@ -217,13 +217,11 @@ WebAuthnManager::MakeCredential(const PublicKeyCredentialCreationOptions& aOptio
   // Enforce 5.4.3 User Account Parameters for Credential Generation
   // When we add UX, we'll want to do more with this value, but for now
   // we just have to verify its correctness.
-  {
-    CryptoBuffer userId;
-    userId.Assign(aOptions.mUser.mId);
-    if (userId.Length() > 64) {
-      promise->MaybeReject(NS_ERROR_DOM_TYPE_ERR);
-      return promise.forget();
-    }
+  CryptoBuffer userId;
+  userId.Assign(aOptions.mUser.mId);
+  if (userId.Length() > 64) {
+    promise->MaybeReject(NS_ERROR_DOM_TYPE_ERR);
+    return promise.forget();
   }
 
   // If timeoutSeconds was specified, check if its value lies within a
@@ -364,7 +362,26 @@ WebAuthnManager::MakeCredential(const PublicKeyCredentialCreationOptions& aOptio
                                                requireUserVerification,
                                                requirePlatformAttachment);
 
-  WebAuthnMakeCredentialExtraInfo extra(extensions,
+  nsString rpIcon;
+  if (aOptions.mRp.mIcon.WasPassed()) {
+    rpIcon = aOptions.mRp.mIcon.Value();
+  }
+
+  nsString userIcon;
+  if (aOptions.mUser.mIcon.WasPassed()) {
+    userIcon = aOptions.mUser.mIcon.Value();
+  }
+
+  WebAuthnMakeCredentialRpInfo rpInfo(aOptions.mRp.mName, rpIcon);
+
+  WebAuthnMakeCredentialUserInfo userInfo(userId,
+                                          aOptions.mUser.mName,
+                                          userIcon,
+                                          aOptions.mUser.mDisplayName);
+
+  WebAuthnMakeCredentialExtraInfo extra(rpInfo,
+                                        userInfo,
+                                        extensions,
                                         authSelection,
                                         requestDirectAttestation);
 

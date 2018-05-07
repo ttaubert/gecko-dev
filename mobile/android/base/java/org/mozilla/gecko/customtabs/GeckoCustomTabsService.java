@@ -103,4 +103,18 @@ public class GeckoCustomTabsService extends CustomTabsService {
 
         return null;
     }
+
+    @Override
+    protected boolean requestPostMessageChannel (CustomTabsSessionToken sessionToken, Uri postMessageOrigin) {
+        Log.v(LOGTAG, "requestPostMessageChannel()");
+
+        return false;
+    }
+
+    @Override
+    protected int postMessage(CustomTabsSessionToken sessionToken, String message, Bundle extras) {
+        Log.v(LOGTAG, "postMessage()");
+
+        return RESULT_FAILURE_MESSAGING_ERROR;
+    }
 }

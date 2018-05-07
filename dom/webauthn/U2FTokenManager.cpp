@@ -6,6 +6,7 @@
 
 #include "mozilla/dom/U2FTokenManager.h"
 #include "mozilla/dom/U2FTokenTransport.h"
+#include "mozilla/dom/U2FAndroidTokenManager.h"
 #include "mozilla/dom/U2FHIDTokenManager.h"
 #include "mozilla/dom/U2FSoftTokenManager.h"
 #include "mozilla/dom/PWebAuthnTransactionParent.h"
@@ -270,7 +271,11 @@ U2FTokenManager::GetTokenManagerImpl()
   // same time as the softtoken would always win the race to register.
   // We could support it for signing though...
   if (pm->GetUsbTokenEnabled()) {
+#ifdef ANDROID
+    return new U2FAndroidTokenManager();
+#else
     return new U2FHIDTokenManager();
+#endif
   }
 
   if (pm->GetSoftTokenEnabled()) {

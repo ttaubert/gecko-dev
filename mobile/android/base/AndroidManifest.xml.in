@@ -325,6 +325,9 @@
         <activity android:name="org.mozilla.gecko.webapps.WebAppActivity"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
+        <activity android:name="org.mozilla.gecko.WebAuthnMakeCredentialActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
         <!-- Declare a predefined number of WebApp<num> activities. These are
              used so that each web app can launch in its own activity. -->
 #define FRAGMENT WebAppManifestFragment.xml.frag.in
