@@ -7037,7 +7037,7 @@ var WebAuthnPromptHelper = {
       label: gNavigatorBundle.getString("webauthn.proceed"),
       accessKey: gNavigatorBundle.getString("webauthn.proceed.accesskey"),
       callback(state) {
-        mgr.resumeRegister(tid, !state.checkboxChecked);
+        mgr.resumeRegister(tid, state.checkboxChecked);
       }
     };
   },
